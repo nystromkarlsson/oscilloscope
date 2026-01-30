@@ -3,7 +3,7 @@ package memory
 import "testing"
 
 func TestRingWriteAndRead(t *testing.T) {
-	r := NewRing(RingBufferSize)
+	r := NewRing(4)
 
 	a, b := uint64(0), uint64(1)
 
@@ -22,36 +22,36 @@ func TestRingWriteAndRead(t *testing.T) {
 }
 
 func TestRingOverwrite(t *testing.T) {
-	r := NewRing(RingBufferSize)
+	r := NewRing(4)
 
-	for i := uint64(0); i < RingBufferSize*2; i++ {
+	for i := uint64(0); i < 4*2; i++ {
 		r.WriteAt(i, float64(i))
 	}
 
-	if r.OldestIndex() != RingBufferSize {
-		t.Fatalf("oldest = %d, want %d", r.OldestIndex(), RingBufferSize)
+	if r.OldestIndex() != 4 {
+		t.Fatalf("oldest = %d, want %d", r.OldestIndex(), 4)
 	}
 
-	for i := uint64(RingBufferSize); i < RingBufferSize*2; i++ {
+	for i := uint64(4); i < 4*2; i++ {
 		v, ok := r.ReadAt(i)
 		if !ok || v != float64(i) {
 			t.Fatalf("readAt(%d) = %v, %v", i, v, ok)
 		}
 	}
 
-	_, ok := r.ReadAt(RingBufferSize - 1)
+	_, ok := r.ReadAt(0)
 	if ok {
 		t.Fatalf("expected index to be overwritten")
 	}
 }
 
 func TestRingMasking(t *testing.T) {
-	r := NewRing(RingBufferSize)
+	r := NewRing(4)
 
-	r.WriteAt(RingBufferSize, 10)
+	r.WriteAt(8, 8)
 
-	v, ok := r.ReadAt(RingBufferSize)
-	if !ok || v != 10 {
+	v, ok := r.ReadAt(8)
+	if !ok || v != 8 {
 		t.Fatalf("masking failed: %v, %v", v, ok)
 	}
 }
