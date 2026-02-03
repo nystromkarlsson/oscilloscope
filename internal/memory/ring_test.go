@@ -3,9 +3,9 @@ package memory
 import "testing"
 
 func TestRingWriteAndRead(t *testing.T) {
-	r := NewRing(4)
+	r := New(4)
 
-	a, b := uint64(0), uint64(1)
+	a, b := 0, 1
 
 	r.WriteAt(a, float64(a))
 	r.WriteAt(b, float64(b))
@@ -22,9 +22,9 @@ func TestRingWriteAndRead(t *testing.T) {
 }
 
 func TestRingOverwrite(t *testing.T) {
-	r := NewRing(4)
+	r := New(4)
 
-	for i := uint64(0); i < 4*2; i++ {
+	for i := 0; i < 4*2; i++ {
 		r.WriteAt(i, float64(i))
 	}
 
@@ -32,7 +32,7 @@ func TestRingOverwrite(t *testing.T) {
 		t.Fatalf("oldest = %d, want %d", r.OldestIndex(), 4)
 	}
 
-	for i := uint64(4); i < 4*2; i++ {
+	for i := 4; i < 4*2; i++ {
 		v, ok := r.ReadAt(i)
 		if !ok || v != float64(i) {
 			t.Fatalf("readAt(%d) = %v, %v", i, v, ok)
@@ -46,7 +46,7 @@ func TestRingOverwrite(t *testing.T) {
 }
 
 func TestRingMasking(t *testing.T) {
-	r := NewRing(4)
+	r := New(4)
 
 	r.WriteAt(8, 8)
 

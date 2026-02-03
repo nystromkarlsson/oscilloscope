@@ -1,19 +1,15 @@
-package sample
+package sampler
 
 import (
 	"testing"
 
-	"oscilloscope/internal/signal"
+	"oscilloscope/internal/source"
 )
 
 func TestSamplerProducesCorrectNumberOfSamples(t *testing.T) {
-	sine := signal.Sine{
-		Frequency: 440,
-		Amplitude: 1.0,
-		Fs:        44100,
-	}
+	sine := source.Sine(440, 1.0, 44100, 4)
 
-	sampler := NewSampler(sine, 4)
+	sampler := New(sine, 4)
 	samples := sampler.Step()
 
 	if len(samples) != 4 {
@@ -22,34 +18,26 @@ func TestSamplerProducesCorrectNumberOfSamples(t *testing.T) {
 }
 
 func TestSamplerAdvancesAbsoluteIndex(t *testing.T) {
-	sine := signal.Sine{
-		Frequency: 440,
-		Amplitude: 1.0,
-		Fs:        44100,
-	}
+	sine := source.Sine(440, 1.0, 44100, 4)
 
-	sampler := NewSampler(sine, 4)
+	sampler := New(sine, 4)
 	sampler.Step()
 
-	if sampler.NextIndex() != 4 {
-		t.Fatalf("after first step, index = %d, want %d", sampler.NextIndex(), 4)
+	if sampler.Index() != 4 {
+		t.Fatalf("after first step, index = %d, want %d", sampler.Index(), 4)
 	}
 
 	sampler.Step()
 
-	if sampler.NextIndex() != 8 {
-		t.Fatalf("after second step, index = %d, want %d", sampler.NextIndex(), 8)
+	if sampler.Index() != 8 {
+		t.Fatalf("after second step, index = %d, want %d", sampler.Index(), 8)
 	}
 }
 
 func TestSamplerProducesContiguousSamples(t *testing.T) {
-	sine := signal.Sine{
-		Frequency: 440,
-		Amplitude: 1.0,
-		Fs:        44100,
-	}
+	sine := source.Sine(440, 1.0, 44100, 4)
 
-	sampler := NewSampler(sine, 4)
+	sampler := New(sine, 4)
 	sampler.Step()
 	second := sampler.Step()
 
@@ -63,18 +51,14 @@ func TestSamplerProducesContiguousSamples(t *testing.T) {
 }
 
 func TestSamplerIsDeterministic(t *testing.T) {
-	sine := signal.Sine{
-		Frequency: 440,
-		Amplitude: 1.0,
-		Fs:        44100,
-	}
+	sine := source.Sine(440, 1.0, 44100, 4)
 
-	sampler := NewSampler(sine, 4)
+	sampler := New(sine, 4)
 	a := sampler.Step()
 	b := sampler.Step()
 
 	// reset and re-run.
-	sampler2 := NewSampler(sine, 4)
+	sampler2 := New(sine, 4)
 	a2 := sampler2.Step()
 	b2 := sampler2.Step()
 

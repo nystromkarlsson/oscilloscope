@@ -7,7 +7,7 @@ import (
 )
 
 func TestRisingTrigger(t *testing.T) {
-	ring := memory.NewRing(4)
+	ring := memory.New(4)
 
 	ring.WriteAt(0, -0.5)
 	ring.WriteAt(1, -0.2)
@@ -18,7 +18,6 @@ func TestRisingTrigger(t *testing.T) {
 		Polarity: Positive,
 		Lower:    LowerThreshold,
 		Upper:    UpperThreshold,
-		Epsilon:  Epsilon,
 	}
 
 	res, ok := trig.Find(ring, 0, 4)
@@ -36,7 +35,7 @@ func TestRisingTrigger(t *testing.T) {
 }
 
 func TestFallingTrigger(t *testing.T) {
-	ring := memory.NewRing(4)
+	ring := memory.New(4)
 
 	ring.WriteAt(0, 0.5)
 	ring.WriteAt(1, 0.2)
@@ -47,7 +46,6 @@ func TestFallingTrigger(t *testing.T) {
 		Polarity: Negative,
 		Lower:    LowerThreshold,
 		Upper:    UpperThreshold,
-		Epsilon:  Epsilon,
 	}
 
 	res, ok := trig.Find(ring, 0, 4)

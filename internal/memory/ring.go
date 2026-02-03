@@ -1,33 +1,41 @@
 package memory
 
+import (
+	"errors"
+	"sync"
+)
+
 type Ring struct {
 	buf  []float64
-	size uint64
-	mask uint64
+	size int
+	mask int
 
-	oldest uint64
-	newest uint64
+	newest int
+	oldest int
 	empty  bool
+
+	mu sync.Mutex
 }
 
-func NewRing(size int) *Ring {
+func New(size int) *Ring {
 	if size <= 0 || (size&(size-1)) != 0 {
 		panic("ring size must be a power of two")
 	}
 
-	s := uint64(size)
-
 	return &Ring{
 		buf:    make([]float64, size),
-		size:   s,
-		mask:   s - 1,
+		size:   size,
+		mask:   size - 1,
 		oldest: 0,
 		newest: 0,
 		empty:  true,
 	}
 }
 
-func (r *Ring) WriteAt(index uint64, value float64) {
+func (r *Ring) WriteAt(index int, value float64) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
 	r.buf[index&r.mask] = value
 
 	if r.empty {
@@ -46,7 +54,10 @@ func (r *Ring) WriteAt(index uint64, value float64) {
 	}
 }
 
-func (r *Ring) ReadAt(index uint64) (float64, bool) {
+func (r *Ring) ReadAt(index int) (float64, bool) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
 	if r.empty {
 		return 0, false
 	}
@@ -58,10 +69,50 @@ func (r *Ring) ReadAt(index uint64) (float64, bool) {
 	return r.buf[index&r.mask], true
 }
 
-func (r *Ring) OldestIndex() uint64 {
-	return r.oldest
+func (r *Ring) ReadRange(start, end int) ([]float64, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	if r.empty || start < r.oldest || end > r.newest {
+		return nil, errors.New("requested range is out of bounds")
+	}
+
+	size := end - start
+	samples := make([]float64, size)
+
+	for i := 0; i < size; i++ {
+		samples[i] = r.buf[(start+i)&r.mask]
+	}
+
+	return samples, nil
 }
 
-func (r *Ring) NewestIndex() uint64 {
-	return r.newest
+func (r *Ring) HasRange(start, end int) bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	if r.empty {
+		return false
+	}
+
+	if start < r.oldest || end > r.newest {
+		return false
+	}
+
+	return true
 }
+
+func (r *Ring) Count() int {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	if r.empty {
+		return 0
+	}
+
+	return r.newest - r.oldest + 1
+}
+
+func (r *Ring) Size() int        { return r.size }
+func (r *Ring) NewestIndex() int { return r.newest }
+func (r *Ring) OldestIndex() int { return r.oldest }
