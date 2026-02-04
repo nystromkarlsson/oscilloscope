@@ -1,7 +1,10 @@
 package acquisition
 
+import "oscilloscope/internal/source"
+
 const (
-	SamplesPerRecord = 1024
-	PreSamples       = 0 // SamplesPerRecord / 2
+	SamplesPerRecord = (source.BufferSize * 8)
+	PreSamples       = SamplesPerRecord / 3
 	RecordLength     = SamplesPerRecord + PreSamples
+	HoldOff          = source.SampleRate / 90
 )

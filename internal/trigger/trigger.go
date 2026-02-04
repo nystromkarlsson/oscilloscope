@@ -55,22 +55,19 @@ func (t *Trigger) Find(
 			return Result{}, false
 		}
 
-		p := prev * dir
-		c := curr * dir
-
 		if !armed {
-			if c <= lower {
+			if prev <= lower {
 				armed = true
 			}
 		} else {
-			if c >= upper {
+			if curr >= upper {
 				armed = false
 			}
 		}
 
-		if p < 0 && c >= 0 {
-			slope := c - p
-			offset := -p / slope
+		if prev < 0 && curr >= 0 {
+			slope := curr - prev
+			offset := -prev / slope
 
 			return Result{
 				Index:  i - 1,

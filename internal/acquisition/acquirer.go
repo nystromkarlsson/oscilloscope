@@ -7,7 +7,8 @@ import (
 )
 
 type Acquirer struct {
-	Trigger *trigger.Trigger
+	Trigger          *trigger.Trigger
+	lastTriggerIndex int
 }
 
 type Result struct {
@@ -17,7 +18,8 @@ type Result struct {
 
 func New(trig *trigger.Trigger) *Acquirer {
 	return &Acquirer{
-		Trigger: trig,
+		Trigger:          trig,
+		lastTriggerIndex: -1,
 	}
 }
 
@@ -26,11 +28,15 @@ func (a *Acquirer) Build(ring *memory.Ring) Result {
 		return a.Empty()
 	}
 
-	searchStart := ring.OldestIndex()
+	searchStart := ring.OldestIndex() + PreSamples
 	searchEnd := ring.NewestIndex()
 
 	trig, ok := a.Trigger.Find(ring, searchStart, searchEnd)
 	if !ok {
+		return a.Empty()
+	}
+
+	if trig.Index-a.lastTriggerIndex < HoldOff {
 		return a.Empty()
 	}
 
@@ -51,6 +57,8 @@ func (a *Acquirer) Build(ring *memory.Ring) Result {
 	if err != nil {
 		return a.Empty()
 	}
+
+	a.lastTriggerIndex = trig.Index
 
 	return Result{
 		Record: record.Record{

@@ -5,6 +5,7 @@ import (
 
 	"oscilloscope/internal/memory"
 	"oscilloscope/internal/record"
+	"oscilloscope/internal/source"
 )
 
 type AcquirerRunner struct {
@@ -32,6 +33,8 @@ func (l *AcquirerRunner) Run() {
 		if !res.Ready {
 			continue
 		}
+
+		res.Record.LowPass(float64(source.SampleRate), source.SampleRate/60)
 
 		select {
 		case l.Out <- res.Record:
