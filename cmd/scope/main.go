@@ -22,7 +22,11 @@ func main() {
 	if err := portaudio.Initialize(); err != nil {
 		panic(err)
 	}
-	defer portaudio.Terminate()
+	defer func() {
+		if err := portaudio.Terminate(); err != nil {
+			panic(err)
+		}
+	}()
 
 	// freq := 20.0
 	// sine := source.Sine(
@@ -71,7 +75,11 @@ func main() {
 	if err := pa.Start(); err != nil {
 		panic(err)
 	}
-	defer pa.Stop()
+	defer func() {
+		if err := pa.Stop(); err != nil {
+			panic(err)
+		}
+	}()
 
 	go acquirerRunner.Run()
 
