@@ -2,9 +2,11 @@ package acquisition
 
 import "oscilloscope/internal/source"
 
+const milliSecond = source.SampleRate / 1000
+const preTriggerRatio = 0.25
+
 const (
-	SamplesPerRecord = (source.BufferSize * 8)
-	PreSamples       = SamplesPerRecord / 3
-	RecordLength     = SamplesPerRecord + PreSamples
-	HoldOff          = source.SampleRate / 90
+	HoldOff          = milliSecond * 1
+	PreSamples       = SamplesPerRecord * preTriggerRatio
+	SamplesPerRecord = milliSecond * 100
 )

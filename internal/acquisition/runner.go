@@ -34,12 +34,14 @@ func (l *AcquirerRunner) Run() {
 			continue
 		}
 
-		res.Record.LowPass(float64(source.SampleRate), source.SampleRate/60)
+		res.Record.HighPass(float64(source.SampleRate), 10)
+		res.Record.LowPass(float64(source.SampleRate), 1000)
 
 		select {
 		case l.Out <- res.Record:
-		case <-l.Done:
-			return
+		default:
+			<-l.Out
+			l.Out <- res.Record
 		}
 	}
 }

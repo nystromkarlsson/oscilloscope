@@ -24,12 +24,12 @@ func New(trig *trigger.Trigger) *Acquirer {
 }
 
 func (a *Acquirer) Build(ring *memory.Ring) Result {
-	if ring.Count() < RecordLength {
+	if ring.Count() < SamplesPerRecord {
 		return a.Empty()
 	}
 
 	searchStart := ring.OldestIndex() + PreSamples
-	searchEnd := ring.NewestIndex()
+	searchEnd := ring.NewestIndex() - PreSamples
 
 	trig, ok := a.Trigger.Find(ring, searchStart, searchEnd)
 	if !ok {
@@ -41,7 +41,7 @@ func (a *Acquirer) Build(ring *memory.Ring) Result {
 	}
 
 	recordStart := trig.Index - PreSamples
-	recordEnd := recordStart + RecordLength
+	recordEnd := recordStart + SamplesPerRecord - PreSamples
 
 	// Implement once previous trigger intex is tracked
 	// if recordStart < ring.OldestIndex() {
@@ -49,7 +49,7 @@ func (a *Acquirer) Build(ring *memory.Ring) Result {
 	//   return a.Empty()
 	// }
 
-	if !ring.HasRange(int(recordStart), int(recordEnd)) {
+	if !ring.HasRange(recordStart, recordEnd) {
 		return a.Empty()
 	}
 

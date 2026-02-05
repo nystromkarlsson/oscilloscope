@@ -1,3 +1,3 @@
 package memory
 
-const RingBufferSize = 8192
+const MemoryBufferSize = 16384

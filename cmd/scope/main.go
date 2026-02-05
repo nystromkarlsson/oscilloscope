@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"github.com/gordonklaus/portaudio"
+	"golang.org/x/term"
 	"os"
 	"os/signal"
 	"strings"
@@ -36,7 +37,7 @@ func main() {
 	// source.BufferSize,
 	// )
 
-	ring := memory.New(memory.RingBufferSize)
+	ring := memory.New(memory.MemoryBufferSize)
 	// samp := sampler.New(sine, source.BufferSize)
 
 	var mu sync.Mutex
@@ -95,7 +96,8 @@ func main() {
 	for {
 		select {
 		case rec := <-out:
-			RenderASCII(rec, SpringGreen)
+			fmt.Print("\033[H\033[2J")
+			RenderASCII(rec, White)
 		case <-done:
 			return
 		}
@@ -105,21 +107,32 @@ func main() {
 
 type WaveColor string
 
+const Reset = "\033[0m"
 const (
-	Reset                 = "\x1b[0m"
-	SpringGreen WaveColor = "\x1b[38;2;0;238;105m" // #00ee69
-	Tangerine   WaveColor = "\x1b[38;2;249;131;0m" // #f98300
+	AmberTrace    WaveColor = "\033[38;2;255;176;0m"   // #ffb000
+	BrightLime    WaveColor = "\033[38;2;140;255;0m"   // #8cff00
+	CyanTrace     WaveColor = "\033[38;2;0;255;238m"   // #00ffee
+	DeepBlue      WaveColor = "\033[38;2;0;14;238m"    // #000eee
+	ElectricBlue  WaveColor = "\033[38;2;0;153;255m"   // #0099ff
+	Glow          WaveColor = "\033[38;2;27;253;156m"  // #1bfd9c
+	MagentaDebug  WaveColor = "\033[38;2;255;68;255m"  // #ff44ff
+	PhosphorGreen WaveColor = "\033[38;2;51;255;51m"   // #33ff33
+	PlasmaRed     WaveColor = "\033[38;2;255;51;85m"   // #ff3355
+	SoftGreen     WaveColor = "\033[38;2;102;255;153m" // #66ff99
+	WarmYellow    WaveColor = "\033[38;2;255;238;85m"  // #ffee55
+	White         WaveColor = "\033[38;2;241;241;241m" // #f1f1f1
 )
 
 func RenderASCII(rec record.Record, color WaveColor) {
-	const (
-		width  = 188
-		height = 48
-	)
+	width, h, err := term.GetSize(int(os.Stdout.Fd()))
+	height := h - 2
+
+	if err != nil {
+		panic(err)
+	}
 
 	var b strings.Builder
 	b.Grow(width*height*2 + 128)
-	b.WriteString("\033[H\033[2J")
 
 	samples := rec.Samples
 	step := float64(len(samples)-1) / float64(width-1)
