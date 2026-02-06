@@ -6,7 +6,7 @@ const milliSecond = source.SampleRate / 1000
 const preTriggerRatio = 0.25
 
 const (
-	HoldOff          = milliSecond * 1
+	HoldOff          = milliSecond * 10
 	PreSamples       = SamplesPerRecord * preTriggerRatio
-	SamplesPerRecord = milliSecond * 100
+	SamplesPerRecord = milliSecond * 300
 )

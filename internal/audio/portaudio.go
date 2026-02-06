@@ -57,9 +57,6 @@ func NewPortAudioRunner(
 	return runner, nil
 }
 
-func (r *PortAudioRunner) Start() error { return r.stream.Start() }
-func (r *PortAudioRunner) Stop() error  { return r.stream.Stop() }
-
 func findBlackHoleDevice() (*portaudio.DeviceInfo, error) {
 	devices, err := portaudio.Devices()
 	if err != nil {
@@ -86,3 +83,6 @@ func (r *PortAudioRunner) process(out []float32) {
 
 	r.Cond.Broadcast()
 }
+
+func (r *PortAudioRunner) Start() error { return r.stream.Start() }
+func (r *PortAudioRunner) Stop() error  { return r.stream.Stop() }

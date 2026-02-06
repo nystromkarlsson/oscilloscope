@@ -102,7 +102,6 @@ func main() {
 			return
 		}
 	}
-
 }
 
 type WaveColor string

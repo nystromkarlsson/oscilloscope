@@ -35,7 +35,7 @@ func (l *AcquirerRunner) Run() {
 		}
 
 		res.Record.HighPass(float64(source.SampleRate), 10)
-		res.Record.LowPass(float64(source.SampleRate), 1000)
+		res.Record.LowPass(float64(source.SampleRate), 3000)
 
 		select {
 		case l.Out <- res.Record:
