@@ -1,0 +1,43 @@
+//kage:unit pixels
+
+package main
+
+// Uniforms
+var Direction vec2         // (1,0) for horizontal, (0,1) for vertical
+var TexelSize vec2         // 1/width, 1/height
+var BlurRadius float       // Maximum sampling radius in pixels
+var ExponentialScale float // Decay rate (smaller = longer tail)
+
+// Exponential weight function - models light scattering in phosphor
+func exponentialWeight(distance float, scale float) float {
+	return exp(-distance / scale)
+}
+
+func Fragment(position vec4, texCoord vec2, color vec4) vec4 {
+	result := vec4(0.0)
+	totalWeight := 0.0
+
+	// Reduce from 50 to 30 (your largest radius)
+	const maxRadius = 30
+
+	for i := -maxRadius; i <= maxRadius; i++ {
+		distance := abs(float(i))
+
+		if distance > BlurRadius {
+			continue
+		}
+
+		offset := Direction * TexelSize * float(i)
+		weight := exponentialWeight(distance, ExponentialScale)
+		sample := imageSrc0At(texCoord + offset)
+
+		result += sample * weight
+		totalWeight += weight
+	}
+
+	if totalWeight > 0.0 {
+		result /= totalWeight
+	}
+
+	return result
+}

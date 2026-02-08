@@ -1,0 +1,86 @@
+//kage:unit pixels
+
+package main
+
+// Uniforms
+var CurvatureAmount float     // 0.0 = flat, 1.0 = curved like reference
+var VignetteIntensity float   // Overall vignette strength
+var ScanlineIntensity float   // Scanline strength
+var ChromaticAberration float // RGB separation amount
+var Brightness float          // Overall brightness multiplier
+var ColorTint vec3            // Color tint (default: slight green)
+
+// Barrel distortion curve (from reference shader)
+func curve(uv vec2, amount float) vec2 {
+	if amount == 0.0 {
+		return uv
+	}
+
+	// Convert to centered coordinates [-1, 1]
+	uv = (uv - 0.5) * 2.0
+
+	// Apply distortion with configurable amount
+	uv *= 1.0 + (0.1 * amount)
+	uv.x *= (1.0 + pow(abs(uv.y)/5.0, 2.0)*amount)
+	uv.y *= (1.0 + pow(abs(uv.x)/4.0, 2.0)*amount)
+
+	// Convert back to [0, 1] and apply slight zoom
+	uv = uv/2.0 + 0.5
+	uv = uv*0.92 + 0.04
+
+	return uv
+}
+
+func Fragment(position vec4, texCoord vec2, color vec4) vec4 {
+	origin, size := imageSrcRegionOnTexture()
+
+	// Normalize to [0, 1]
+	q := (texCoord - origin) / size
+
+	// Apply curvature
+	uv := curve(q, CurvatureAmount)
+
+	// Chromatic aberration (RGB channel separation)
+	var col vec3
+	aberration := ChromaticAberration * 0.001
+
+	// Sample R, G, B channels at slightly different positions
+	col.r = imageSrc0At((uv+vec2(aberration, aberration))*size + origin).r
+	col.g = imageSrc0At((uv+vec2(0.0, -aberration*2))*size + origin).g
+	col.b = imageSrc0At((uv+vec2(-aberration*2, 0.0))*size + origin).b
+
+	// Add ghosting/bloom effect (from reference)
+	col.r += 0.08 * imageSrc0At((0.75*vec2(0.025, -0.027)+uv+vec2(aberration, aberration))*size+origin).r
+	col.g += 0.05 * imageSrc0At((0.75*vec2(-0.022, -0.02)+uv+vec2(0.0, -aberration*2))*size+origin).g
+	col.b += 0.08 * imageSrc0At((0.75*vec2(-0.02, -0.018)+uv+vec2(-aberration*2, 0.0))*size+origin).b
+
+	// Color grading (from reference: darker darks, brighter brights)
+	col = clamp(col*0.6+0.4*col*col, 0.0, 1.0)
+
+	// Vignette effect (from reference)
+	vig := 16.0 * uv.x * uv.y * (1.0 - uv.x) * (1.0 - uv.y)
+	col *= vec3(pow(vig, 0.3*VignetteIntensity))
+
+	// Color tint (reference uses slight green tint)
+	col *= ColorTint
+
+	// Overall brightness
+	col *= Brightness
+
+	// Scanlines (from reference)
+	scans := clamp(0.35+0.35*sin(uv.y*size.y*1.5), 0.0, 1.0)
+	s := pow(scans, 1.7)
+	col *= vec3(0.4 + 0.7*s*ScanlineIntensity)
+
+	// Black border outside curved area
+	if uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0 {
+		col = vec3(0.0)
+	}
+
+	// Phosphor mask / shadow mask effect (from reference)
+	// Creates vertical RGB stripe pattern
+	shadowMask := 1.0 - 0.65*clamp((mod(texCoord.x, 2.0)-1.0)*2.0, 0.0, 1.0)
+	col *= shadowMask
+
+	return vec4(col, 1.0)
+}

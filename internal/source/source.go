@@ -19,7 +19,7 @@ func Sine(frequency, amplitude float64, sampleRate, bufferSize int) Signal {
 }
 
 func (s Signal) ValueAt(n int) float64 {
-	t := float64(n) / float64(SampleRate)
+	t := float64(n) / float64(s.sampleRate)
 	return s.amplitude * math.Sin(2*math.Pi*s.frequency*t)
 }
 

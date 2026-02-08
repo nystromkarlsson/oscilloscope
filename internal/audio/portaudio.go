@@ -13,8 +13,9 @@ type PortAudioRunner struct {
 	Ring *memory.Ring
 	Cond *sync.Cond
 
-	stream *portaudio.Stream
-	index  int
+	stream  *portaudio.Stream
+	index   int
+	convBuf []float64 // pre-allocated float32→float64 conversion buffer
 }
 
 func NewPortAudioRunner(
@@ -29,8 +30,9 @@ func NewPortAudioRunner(
 	}
 
 	runner := &PortAudioRunner{
-		Ring: ring,
-		Cond: cond,
+		Ring:    ring,
+		Cond:    cond,
+		convBuf: make([]float64, bufferSize),
 	}
 
 	params := portaudio.StreamParameters{
@@ -72,16 +74,21 @@ func findBlackHoleDevice() (*portaudio.DeviceInfo, error) {
 	return nil, fmt.Errorf("BlackHole device not found")
 }
 
-func (r *PortAudioRunner) process(out []float32) {
-	r.Cond.L.Lock()
-	defer r.Cond.L.Unlock()
-
-	for _, v := range out {
-		r.Ring.WriteAt(r.index, float64(v))
-		r.index++
+func (r *PortAudioRunner) process(in []float32) {
+	// Convert float32→float64 into pre-allocated buffer
+	buf := r.convBuf[:len(in)]
+	for i, v := range in {
+		buf[i] = float64(v)
 	}
 
+	// Single lock acquisition for all samples
+	r.Ring.WriteBatch(r.index, buf)
+	r.index += len(in)
+
+	// Signal the acquirer that new data is available
+	r.Cond.L.Lock()
 	r.Cond.Broadcast()
+	r.Cond.L.Unlock()
 }
 
 func (r *PortAudioRunner) Start() error { return r.stream.Start() }

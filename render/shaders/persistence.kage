@@ -1,0 +1,25 @@
+//kage:unit pixels
+
+package main
+
+var DecayFactor float
+var Brightness float
+
+func Fragment(position vec4, texCoord vec2, color vec4) vec4 {
+	// Sample previous persistence
+	previous := imageSrc0At(texCoord)
+
+	// Sample new trace
+	newTrace := imageSrc1At(texCoord)
+
+	// Decay previous frame
+	decayed := previous * DecayFactor
+
+	// Add new trace with brightness boost
+	result := decayed + (newTrace * Brightness)
+
+	// Clamp to prevent overflow
+	result = clamp(result, vec4(0.0), vec4(1.0))
+
+	return result
+}

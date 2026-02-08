@@ -17,31 +17,41 @@ type AcquirerRunner struct {
 	Done chan struct{}
 }
 
-func (l *AcquirerRunner) Run() {
+func NewRunner(ring *memory.Ring, acquirer *Acquirer, cond *sync.Cond, out chan record.Record, done chan struct{}) *AcquirerRunner {
+	return &AcquirerRunner{
+		Ring:     ring,
+		Acquirer: acquirer,
+		Cond:     cond,
+		Out:      out,
+		Done:     done,
+	}
+}
+
+func (ar *AcquirerRunner) Run() {
 	for {
-		l.Cond.L.Lock()
-		l.Cond.Wait()
-		l.Cond.L.Unlock()
+		ar.Cond.L.Lock()
+		ar.Cond.Wait()
+		ar.Cond.L.Unlock()
 
 		select {
-		case <-l.Done:
+		case <-ar.Done:
 			return
 		default:
 		}
 
-		res := l.Acquirer.Build(l.Ring)
+		res := ar.Acquirer.Build(ar.Ring)
 		if !res.Ready {
 			continue
 		}
 
 		res.Record.HighPass(float64(source.SampleRate), 10)
-		res.Record.LowPass(float64(source.SampleRate), 3000)
+		res.Record.LowPass(float64(source.SampleRate), 2000)
 
 		select {
-		case l.Out <- res.Record:
+		case ar.Out <- res.Record:
 		default:
-			<-l.Out
-			l.Out <- res.Record
+			<-ar.Out
+			ar.Out <- res.Record
 		}
 	}
 }

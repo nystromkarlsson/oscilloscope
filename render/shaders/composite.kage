@@ -1,0 +1,18 @@
+//kage:unit pixels
+
+package main
+
+var CenterWeight float
+var NearWeight float
+var FarWeight float
+
+func Fragment(position vec4, texCoord vec2, color vec4) vec4 {
+	center := imageSrc0At(texCoord)
+	near := imageSrc1At(texCoord)
+	far := imageSrc2At(texCoord)
+
+	// Weighted additive combination
+	result := center*CenterWeight + near*NearWeight + far*FarWeight
+
+	return clamp(result, vec4(0.0), vec4(1.0))
+}

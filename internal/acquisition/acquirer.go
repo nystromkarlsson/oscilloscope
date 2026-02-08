@@ -41,7 +41,7 @@ func (a *Acquirer) Build(ring *memory.Ring) Result {
 	}
 
 	recordStart := trig.Index - PreSamples
-	recordEnd := recordStart + SamplesPerRecord - PreSamples
+	recordEnd := recordStart + SamplesPerRecord
 
 	// Implement once previous trigger intex is tracked
 	// if recordStart < ring.OldestIndex() {

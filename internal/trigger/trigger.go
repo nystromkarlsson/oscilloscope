@@ -30,6 +30,10 @@ func (t *Trigger) Find(
 	start int,
 	end int,
 ) (Result, bool) {
+	if end <= start+1 {
+		return Result{}, false
+	}
+
 	dir := float64(t.Polarity)
 
 	l := dir * t.Lower
@@ -38,22 +42,17 @@ func (t *Trigger) Find(
 	lower := math.Min(l, u)
 	upper := math.Max(l, u)
 
-	if end <= start+1 {
-		return Result{}, false
-	}
-
-	prev, ok := ring.ReadAt(start)
-	if !ok {
+	// Bulk read from ring buffer (single lock acquisition)
+	samples, err := ring.ReadRange(start, end)
+	if err != nil {
 		return Result{}, false
 	}
 
 	armed := false
 
-	for i := start + 1; i < end; i++ {
-		curr, ok := ring.ReadAt(i)
-		if !ok {
-			return Result{}, false
-		}
+	for i := 1; i < len(samples); i++ {
+		prev := samples[i-1]
+		curr := samples[i]
 
 		if !armed {
 			if prev <= lower {
@@ -65,17 +64,16 @@ func (t *Trigger) Find(
 			}
 		}
 
-		if prev < 0 && curr >= 0 {
+		// Gate zero-crossing on armed state for correct hysteresis
+		if armed && prev < 0 && curr >= 0 {
 			slope := curr - prev
 			offset := -prev / slope
 
 			return Result{
-				Index:  i - 1,
+				Index:  start + i - 1, // Map back to ring buffer index
 				Offset: offset,
 			}, true
 		}
-
-		prev = curr
 	}
 
 	return Result{}, false

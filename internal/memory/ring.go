@@ -113,6 +113,34 @@ func (r *Ring) Count() int {
 	return r.newest - r.oldest + 1
 }
 
+// WriteBatch writes multiple samples starting at startIndex under a single lock acquisition
+func (r *Ring) WriteBatch(startIndex int, values []float64) {
+	if len(values) == 0 {
+		return
+	}
+
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	for i, v := range values {
+		r.buf[(startIndex+i)&r.mask] = v
+	}
+
+	endIndex := startIndex + len(values) - 1
+
+	if r.empty {
+		r.oldest = startIndex
+		r.newest = endIndex
+		r.empty = false
+	} else if endIndex > r.newest {
+		r.newest = endIndex
+	}
+
+	if r.newest-r.oldest+1 > r.size {
+		r.oldest = r.newest - r.size + 1
+	}
+}
+
 func (r *Ring) Size() int        { return r.size }
 func (r *Ring) NewestIndex() int { return r.newest }
 func (r *Ring) OldestIndex() int { return r.oldest }

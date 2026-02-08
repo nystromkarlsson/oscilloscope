@@ -10,7 +10,7 @@ const (
 const hysteresis = 0.0625
 
 const (
-	Epsilon        = hysteresis / 4
+	Epsilon        = hysteresis / 8
 	LowerThreshold = -hysteresis
 	UpperThreshold = hysteresis
 )
