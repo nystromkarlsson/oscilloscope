@@ -1,6 +1,6 @@
 package source
 
 const (
-	SampleRate = 96000
-	BufferSize = 256
+	SampleRate = 44100
+	BufferSize = 128
 )

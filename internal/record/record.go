@@ -1,7 +1,7 @@
 package record
 
 type Record struct {
-	Samples       []float64
+	Samples       []float32
 	TriggerIndex  int
 	TriggerOffset float64
 }

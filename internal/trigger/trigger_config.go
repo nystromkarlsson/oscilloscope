@@ -1,16 +1,16 @@
 package trigger
 
-type Polarity float64
+type Polarity int
 
 const (
 	Positive Polarity = 1
 	Negative Polarity = -1
 )
 
-const hysteresis = 0.0625
+const hysteresis = 0.025
 
 const (
-	Epsilon        = hysteresis / 8
+	Epsilon        = hysteresis
 	LowerThreshold = -hysteresis
 	UpperThreshold = hysteresis
 )

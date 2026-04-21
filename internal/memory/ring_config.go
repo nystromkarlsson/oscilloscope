@@ -1,3 +1,3 @@
 package memory
 
-const MemoryBufferSize = 4096
+const MemoryBufferSize = 16384

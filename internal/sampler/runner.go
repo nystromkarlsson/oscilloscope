@@ -32,7 +32,7 @@ func (r *SamplerRunner) Run() {
 		base := r.Sampler.Index() - len(buf)
 
 		for i, v := range buf {
-			r.Ring.WriteAt(base+i, v)
+			r.Ring.WriteAt(base+i, float32(v))
 		}
 
 		r.Cond.L.Lock()

@@ -1,6 +1,8 @@
 package acquisition
 
 import (
+	"sync/atomic"
+
 	"oscilloscope/internal/memory"
 	"oscilloscope/internal/record"
 	"oscilloscope/internal/trigger"
@@ -8,7 +10,8 @@ import (
 
 type Acquirer struct {
 	Trigger          *trigger.Trigger
-	lastTriggerIndex int
+	HoldOff          atomic.Int64
+	LastTriggerIndex int
 }
 
 type Result struct {
@@ -17,9 +20,21 @@ type Result struct {
 }
 
 func New(trig *trigger.Trigger) *Acquirer {
-	return &Acquirer{
+	a := &Acquirer{
 		Trigger:          trig,
-		lastTriggerIndex: -1,
+		LastTriggerIndex: -1,
+	}
+	a.HoldOff.Store(int64(DefaultHoldOff))
+	return a
+}
+
+func (a *Acquirer) AdjustHoldOff(delta int) {
+	for {
+		old := a.HoldOff.Load()
+		next := max(old+int64(delta), 0)
+		if a.HoldOff.CompareAndSwap(old, next) {
+			return
+		}
 	}
 }
 
@@ -36,18 +51,12 @@ func (a *Acquirer) Build(ring *memory.Ring) Result {
 		return a.Empty()
 	}
 
-	if trig.Index-a.lastTriggerIndex < HoldOff {
+	if trig.Index-a.LastTriggerIndex < int(a.HoldOff.Load()) {
 		return a.Empty()
 	}
 
 	recordStart := trig.Index - PreSamples
 	recordEnd := recordStart + SamplesPerRecord
-
-	// Implement once previous trigger intex is tracked
-	// if recordStart < ring.OldestIndex() {
-	//   fmt.Println("Acquirer: trigger index is too close to the start of the ring buffer")
-	//   return a.Empty()
-	// }
 
 	if !ring.HasRange(recordStart, recordEnd) {
 		return a.Empty()
@@ -58,7 +67,7 @@ func (a *Acquirer) Build(ring *memory.Ring) Result {
 		return a.Empty()
 	}
 
-	a.lastTriggerIndex = trig.Index
+	a.LastTriggerIndex = trig.Index
 
 	return Result{
 		Record: record.Record{
@@ -75,4 +84,8 @@ func (a *Acquirer) Empty() Result {
 		Record: record.Record{},
 		Ready:  false,
 	}
+}
+
+func (a *Acquirer) GetHoldOff() int {
+	return int(a.HoldOff.Load())
 }

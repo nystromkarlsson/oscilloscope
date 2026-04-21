@@ -6,7 +6,7 @@ import (
 )
 
 type Ring struct {
-	buf  []float64
+	buf  []float32
 	size int
 	mask int
 
@@ -23,7 +23,7 @@ func New(size int) *Ring {
 	}
 
 	return &Ring{
-		buf:    make([]float64, size),
+		buf:    make([]float32, size),
 		size:   size,
 		mask:   size - 1,
 		oldest: 0,
@@ -32,7 +32,7 @@ func New(size int) *Ring {
 	}
 }
 
-func (r *Ring) WriteAt(index int, value float64) {
+func (r *Ring) WriteAt(index int, value float32) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -54,7 +54,7 @@ func (r *Ring) WriteAt(index int, value float64) {
 	}
 }
 
-func (r *Ring) ReadAt(index int) (float64, bool) {
+func (r *Ring) ReadAt(index int) (float32, bool) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -69,7 +69,7 @@ func (r *Ring) ReadAt(index int) (float64, bool) {
 	return r.buf[index&r.mask], true
 }
 
-func (r *Ring) ReadRange(start, end int) ([]float64, error) {
+func (r *Ring) ReadRange(start, end int) ([]float32, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -78,9 +78,9 @@ func (r *Ring) ReadRange(start, end int) ([]float64, error) {
 	}
 
 	size := end - start
-	samples := make([]float64, size)
+	samples := make([]float32, size)
 
-	for i := 0; i < size; i++ {
+	for i := range size {
 		samples[i] = r.buf[(start+i)&r.mask]
 	}
 
@@ -114,7 +114,7 @@ func (r *Ring) Count() int {
 }
 
 // WriteBatch writes multiple samples starting at startIndex under a single lock acquisition
-func (r *Ring) WriteBatch(startIndex int, values []float64) {
+func (r *Ring) WriteBatch(startIndex int, values []float32) {
 	if len(values) == 0 {
 		return
 	}

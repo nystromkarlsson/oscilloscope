@@ -21,7 +21,6 @@ import (
 )
 
 func main() {
-	// Initialize PortAudio
 	if err := portaudio.Initialize(); err != nil {
 		log.Fatal("PortAudio init:", err)
 	}
@@ -31,7 +30,6 @@ func main() {
 		}
 	}()
 
-	// Setup audio acquisition pipeline
 	var mu sync.Mutex
 	cond := sync.NewCond(&mu)
 
@@ -40,9 +38,8 @@ func main() {
 	acquirer := acquisition.New(trig)
 
 	done := make(chan struct{})
-	recordCh := make(chan record.Record, 4)
+	recordCh := make(chan record.Record, 2)
 
-	// Safe shutdown function (can be called from multiple goroutines)
 	var closeOnce sync.Once
 	shutdown := func() {
 		closeOnce.Do(func() {
@@ -53,7 +50,7 @@ func main() {
 	stream, err := audio.NewPortAudioRunner(
 		ring,
 		cond,
-		float64(source.SampleRate),
+		source.SampleRate,
 		source.BufferSize,
 	)
 	if err != nil {
@@ -69,11 +66,9 @@ func main() {
 		}
 	}()
 
-	// Start acquisition goroutine
 	acquirerRunner := acquisition.NewRunner(ring, acquirer, cond, recordCh, done)
 	go acquirerRunner.Run()
 
-	// Setup signal handling for graceful shutdown
 	sigch := make(chan os.Signal, 1)
 	signal.Notify(sigch, os.Interrupt, syscall.SIGTERM)
 
@@ -84,26 +79,16 @@ func main() {
 		cond.Broadcast()
 	}()
 
-	// Create display
-	displayCfg := display.DefaultConfig()
-	game, err := display.New(recordCh, done, shutdown, displayCfg)
+	cfg := display.DefaultConfig()
+	d, err := display.New(cfg, acquirer, recordCh, done, shutdown)
 	if err != nil {
 		log.Fatal("Display init:", err)
 	}
-	defer game.Close()
 
-	// Configure Ebiten window
-	ebiten.SetWindowSize(displayCfg.WindowWidth, displayCfg.WindowHeight)
-	ebiten.SetWindowTitle(displayCfg.WindowTitle)
-	ebiten.SetWindowResizingMode(ebiten.WindowResizingModeEnabled)
-	ebiten.SetVsyncEnabled(true)
-
-	// Run the game loop (blocks until window closes or error)
-	if err := ebiten.RunGame(game); err != nil {
-		log.Printf("Game error: %v", err)
+	if err := ebiten.RunGame(d); err != nil && err != ebiten.Termination {
+		log.Fatal(err)
 	}
 
-	// Ensure cleanup
 	shutdown()
 	cond.Broadcast()
 }

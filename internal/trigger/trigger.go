@@ -51,8 +51,8 @@ func (t *Trigger) Find(
 	armed := false
 
 	for i := 1; i < len(samples); i++ {
-		prev := samples[i-1]
-		curr := samples[i]
+		prev := float64(samples[i-1])
+		curr := float64(samples[i])
 
 		if !armed {
 			if prev <= lower {

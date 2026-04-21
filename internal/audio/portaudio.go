@@ -15,7 +15,7 @@ type PortAudioRunner struct {
 
 	stream  *portaudio.Stream
 	index   int
-	convBuf []float64 // pre-allocated float32→float64 conversion buffer
+	convBuf []float32 // pre-allocated float32→float32 conversion buffer
 }
 
 func NewPortAudioRunner(
@@ -32,7 +32,7 @@ func NewPortAudioRunner(
 	runner := &PortAudioRunner{
 		Ring:    ring,
 		Cond:    cond,
-		convBuf: make([]float64, bufferSize),
+		convBuf: make([]float32, bufferSize),
 	}
 
 	params := portaudio.StreamParameters{
@@ -75,10 +75,10 @@ func findBlackHoleDevice() (*portaudio.DeviceInfo, error) {
 }
 
 func (r *PortAudioRunner) process(in []float32) {
-	// Convert float32→float64 into pre-allocated buffer
+	// Convert float64→float32 into pre-allocated buffer
 	buf := r.convBuf[:len(in)]
 	for i, v := range in {
-		buf[i] = float64(v)
+		buf[i] = float32(v)
 	}
 
 	// Single lock acquisition for all samples
