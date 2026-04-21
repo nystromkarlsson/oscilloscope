@@ -7,7 +7,7 @@ const preTriggerRatio = 0.1
 
 const (
 	DefaultHoldOff   = SamplesPerRecord - PreSamples
-	Length           = 60.0
+	Length           = 90.0
 	PreSamples       = SamplesPerRecord * preTriggerRatio
 	SamplesPerRecord = milliSecond * Length
 )
