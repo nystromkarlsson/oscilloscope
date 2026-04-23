@@ -7,7 +7,7 @@ const (
 	Negative Polarity = -1
 )
 
-const hysteresis = 0.025
+const hysteresis = 0.1
 
 const (
 	Epsilon        = hysteresis

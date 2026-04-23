@@ -16,31 +16,28 @@ import (
 
 const (
 	beamSpriteRadius = 4.0
-	beamBrightness   = 0.75
+	beamBrightness   = 0.9
 	subsampleStep    = 0.25
 )
 
 type Config struct {
-	WindowTitle  string
-	WindowWidth  int
-	WindowHeight int
-
-	SweepDuration float64
-
+	WindowTitle       string
+	SweepDuration     float64
 	Phosphor          Phosphor
 	PhosphorDecay     float64
 	PhosphorThreshold float64
-
-	CRTConfig shader.CRTConfig
+	BlurIntensity     float64
+	BlurRadius        float64
+	CRTConfig         shader.CRTConfig
 }
 
 func DefaultConfig() *Config {
 	return &Config{
 		WindowTitle:       "Oscilloscope",
-		WindowWidth:       1000 * 1.15,
-		WindowHeight:      800 * 1.15,
-		Phosphor:          PhosphorP11,
-		PhosphorThreshold: 0.025,
+		Phosphor:          PhosphorP39,
+		PhosphorThreshold: 0.1,
+		BlurIntensity:     6.0,
+		BlurRadius:        6.0,
 		CRTConfig:         shader.DefaultCRTConfig(),
 	}
 }
@@ -64,6 +61,12 @@ type Display struct {
 	beamSprite  *ebiten.Image
 	decayShader *ebiten.Shader
 
+	blurShader    *ebiten.Shader
+	blurCanvasH   *ebiten.Image
+	blurCanvas    *ebiten.Image
+	blurIntensity float64
+	blurRadius    float64
+
 	crtShader *ebiten.Shader
 	crtConfig shader.CRTConfig
 	crtCanvas *ebiten.Image
@@ -86,26 +89,14 @@ func New(
 		cfg = DefaultConfig()
 	}
 
-	decay, err := ebiten.NewShader(shader.DecayShaderSrc)
+	decayShader, err := ebiten.NewShader(shader.DecayShaderSrc)
 	if err != nil {
 		return nil, fmt.Errorf("display: failed to compile decay shader: %w", err)
 	}
 
-	d := &Display{
-		acquirer:          acquirer,
-		recordCh:          recordCh,
-		done:              done,
-		shutdown:          shutdown,
-		layoutWidth:       cfg.WindowWidth,
-		layoutHeight:      cfg.WindowHeight,
-		sweepDuration:     cfg.Phosphor.DecayTimeMs / 1000.0,
-		phosphor:          cfg.Phosphor,
-		phosphorDecay:     decayPerTick(cfg.Phosphor.DecayTimeMs*2, ebiten.TPS()),
-		phosphorThreshold: cfg.PhosphorThreshold,
-		phosphorA:         ebiten.NewImage(cfg.WindowWidth, cfg.WindowHeight),
-		phosphorB:         ebiten.NewImage(cfg.WindowWidth, cfg.WindowHeight),
-		beamSprite:        makeBeamSprite(beamSpriteRadius, cfg.Phosphor),
-		decayShader:       decay,
+	blurShader, err := ebiten.NewShader(shader.BlurShaderSrc)
+	if err != nil {
+		return nil, fmt.Errorf("display: failed to compile blur shader: %w", err)
 	}
 
 	crtShader, err := ebiten.NewShader(shader.CrtShaderSrc)
@@ -113,11 +104,39 @@ func New(
 		return nil, fmt.Errorf("display: failed to compile CRT shader: %w", err)
 	}
 
-	d.crtShader = crtShader
-	d.crtConfig = cfg.CRTConfig
-	d.crtCanvas = ebiten.NewImage(cfg.WindowWidth, cfg.WindowHeight)
+	w, h := ebiten.Monitor().Size()
 
-	ebiten.SetWindowSize(cfg.WindowWidth, cfg.WindowHeight)
+	d := &Display{
+		acquirer: acquirer,
+		recordCh: recordCh,
+		done:     done,
+		shutdown: shutdown,
+
+		layoutWidth:  w,
+		layoutHeight: h,
+		phosphorA:    ebiten.NewImage(w, h),
+		phosphorB:    ebiten.NewImage(w, h),
+		blurCanvasH:  ebiten.NewImage(w, h),
+		blurCanvas:   ebiten.NewImage(w, h),
+		crtCanvas:    ebiten.NewImage(w, h),
+
+		decayShader: decayShader,
+		crtShader:   crtShader,
+		blurShader:  blurShader,
+		crtConfig:   cfg.CRTConfig,
+
+		beamSprite:    makeBeamSprite(beamSpriteRadius, cfg.Phosphor),
+		sweepDuration: cfg.Phosphor.DecayTimeMs / 1000.0,
+
+		phosphor:          cfg.Phosphor,
+		phosphorDecay:     decayPerTick(cfg.Phosphor.DecayTimeMs, ebiten.TPS()),
+		phosphorThreshold: cfg.PhosphorThreshold,
+		blurIntensity:     cfg.BlurIntensity,
+		blurRadius:        cfg.BlurRadius,
+	}
+
+	ebiten.SetWindowSize(w, h)
+	ebiten.SetWindowResizingMode(ebiten.WindowResizingModeEnabled)
 	ebiten.SetWindowTitle(cfg.WindowTitle)
 
 	return d, nil
@@ -165,25 +184,35 @@ func (d *Display) Update() error {
 
 func (d *Display) Draw(screen *ebiten.Image) {
 	d.crtCanvas.Fill(d.phosphor.Background)
+	d.crtCanvas.DrawImage(d.phosphorA, &ebiten.DrawImageOptions{Blend: ebiten.BlendLighter})
 
-	phosphorOp := &ebiten.DrawImageOptions{}
-	phosphorOp.Blend = ebiten.BlendLighter
-	d.crtCanvas.DrawImage(d.phosphorA, phosphorOp)
+	// Horizontal pass: phosphorA → blurCanvasH
+	d.blurCanvasH.Clear()
+	d.blurCanvasH.DrawRectShader(d.layoutWidth, d.layoutHeight, d.blurShader, &ebiten.DrawRectShaderOptions{
+		Images:   [4]*ebiten.Image{d.phosphorA},
+		Uniforms: map[string]any{"Radius": d.blurRadius, "Intensity": float32(1.0)},
+	})
 
+	// Vertical pass: blurCanvasH → blurCanvas
+	d.blurCanvas.Clear()
+	d.blurCanvas.DrawRectShader(d.layoutWidth, d.layoutHeight, d.blurShader, &ebiten.DrawRectShaderOptions{
+		Images:   [4]*ebiten.Image{d.blurCanvasH},
+		Uniforms: map[string]any{"Radius": d.blurRadius, "Intensity": d.blurIntensity},
+	})
+
+	d.crtCanvas.DrawImage(d.blurCanvas, &ebiten.DrawImageOptions{Blend: ebiten.BlendLighter})
 	drawGrid(d.crtCanvas, d.layoutWidth, d.layoutHeight)
-
-	crtOp := &ebiten.DrawRectShaderOptions{}
-	crtOp.Images[0] = d.crtCanvas
-	crtOp.Uniforms = map[string]any{
-		"CurvatureAmount":     d.crtConfig.CurvatureAmount,
-		"VignetteIntensity":   d.crtConfig.VignetteIntensity,
-		"ScanlineIntensity":   d.crtConfig.ScanlineIntensity,
-		"ChromaticAberration": d.crtConfig.ChromaticAberration,
-		"Brightness":          d.crtConfig.Brightness,
-		"ColorTint":           d.crtConfig.ColorTint[:],
-	}
-
-	screen.DrawRectShader(d.layoutWidth, d.layoutHeight, d.crtShader, crtOp)
+	screen.DrawRectShader(d.layoutWidth, d.layoutHeight, d.crtShader, &ebiten.DrawRectShaderOptions{
+		Images: [4]*ebiten.Image{d.crtCanvas},
+		Uniforms: map[string]any{
+			"CurvatureAmount":     d.crtConfig.CurvatureAmount,
+			"VignetteIntensity":   d.crtConfig.VignetteIntensity,
+			"ScanlineIntensity":   d.crtConfig.ScanlineIntensity,
+			"ChromaticAberration": d.crtConfig.ChromaticAberration,
+			"Brightness":          d.crtConfig.Brightness,
+			"ColorTint":           d.crtConfig.ColorTint[:],
+		},
+	})
 }
 
 func (d *Display) Layout(outsideWidth, outsideHeight int) (int, int) {
@@ -208,7 +237,6 @@ func (d *Display) depositSweepTick() bool {
 		curX = screenW
 	}
 
-	// Maps a screen X pixel position to the nearest sample index.
 	toSampleIdx := func(px float64) int {
 		idx := int((px / screenW) * float64(total-1))
 		if idx < 0 {
@@ -231,12 +259,7 @@ func (d *Display) depositSweepTick() bool {
 	for s := 0; s <= steps; s++ {
 		t := float64(s) / float64(steps)
 		px := d.prevPixelX + dx*t
-
-		// Re-sample Y at each substep's X rather than linearly interpolating
-		// between endpoints. This preserves signal detail at slow timebases
-		// where a single tick spans many samples.
 		py := sampleToScreenY(float64(samples[toSampleIdx(px)]), screenH)
-
 		depositBeam(d.phosphorA, d.beamSprite, px, py, depositOp)
 	}
 
@@ -294,17 +317,17 @@ func drawGrid(screen *ebiten.Image, w, h int) {
 	// Vertical lines.
 	for i := 1; i < cols; i++ {
 		x := float32(float64(i) * cellW)
-		vector.StrokeLine(screen, x, 0, x, float32(h), 2, gridCol, true)
+		vector.StrokeLine(screen, x, 0, x, float32(h), 3, gridCol, true)
 	}
 
 	// Horizontal lines.
 	for i := 1; i < rows; i++ {
 		y := float32(float64(i) * cellH)
-		vector.StrokeLine(screen, 0, y, float32(w), y, 2, gridCol, true)
+		vector.StrokeLine(screen, 0, y, float32(w), y, 3, gridCol, true)
 	}
 }
 
 func decayPerTick(decayMs float64, tps int) float64 {
-	n := decayMs / 1000.0 * float64(tps)
+	n := decayMs / 500.0 * float64(tps)
 	return 1.0 - math.Pow(0.1, 1.0/n)
 }

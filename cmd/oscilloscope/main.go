@@ -38,7 +38,7 @@ func main() {
 	acquirer := acquisition.New(trig)
 
 	done := make(chan struct{})
-	recordCh := make(chan record.Record, 2)
+	recordCh := make(chan record.Record, 1)
 
 	var closeOnce sync.Once
 	shutdown := func() {

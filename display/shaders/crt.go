@@ -12,9 +12,9 @@ type CRTConfig struct {
 func DefaultCRTConfig() CRTConfig {
 	return CRTConfig{
 		CurvatureAmount:     1.0,
-		VignetteIntensity:   0.5,
-		ScanlineIntensity:   0.25,
-		ChromaticAberration: 0.0,
+		VignetteIntensity:   0.75,
+		ScanlineIntensity:   0.75,
+		ChromaticAberration: 0.25,
 		Brightness:          5.0,
 		ColorTint:           [3]float64{1.0, 1.0, 1.0},
 	}

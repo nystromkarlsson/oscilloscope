@@ -1,6 +1,10 @@
 package display
 
-import "image/color"
+import (
+	"image/color"
+
+	"oscilloscope/internal/acquisition"
+)
 
 type Phosphor struct {
 	Name        string
@@ -9,7 +13,7 @@ type Phosphor struct {
 	DecayTimeMs float64
 }
 
-var decayTime = 90.0
+var decayTime = acquisition.QuarterBeatMs / 4
 
 var (
 	PhosphorP31 = Phosphor{

@@ -1,6 +1,7 @@
 package acquisition
 
 import (
+	"math"
 	"sync/atomic"
 
 	"oscilloscope/internal/memory"
@@ -24,7 +25,7 @@ func New(trig *trigger.Trigger) *Acquirer {
 		Trigger:          trig,
 		LastTriggerIndex: -1,
 	}
-	a.HoldOff.Store(int64(DefaultHoldOff))
+	a.HoldOff.Store(int64(math.Floor(DefaultHoldOff)))
 	return a
 }
 
@@ -39,12 +40,12 @@ func (a *Acquirer) AdjustHoldOff(delta int) {
 }
 
 func (a *Acquirer) Build(ring *memory.Ring) Result {
-	if ring.Count() < SamplesPerRecord {
+	if ring.Count() < int(math.Floor(SamplesPerRecord)) {
 		return a.Empty()
 	}
 
-	searchStart := ring.OldestIndex() + PreSamples
-	searchEnd := ring.NewestIndex() - PreSamples
+	searchStart := ring.OldestIndex() + int(math.Floor(PreSamples))
+	searchEnd := ring.NewestIndex() - int(math.Floor(PreSamples))
 
 	trig, ok := a.Trigger.Find(ring, searchStart, searchEnd)
 	if !ok {
@@ -55,8 +56,8 @@ func (a *Acquirer) Build(ring *memory.Ring) Result {
 		return a.Empty()
 	}
 
-	recordStart := trig.Index - PreSamples
-	recordEnd := recordStart + SamplesPerRecord
+	recordStart := trig.Index - int(math.Floor(PreSamples))
+	recordEnd := recordStart + int(math.Floor(SamplesPerRecord))
 
 	if !ring.HasRange(recordStart, recordEnd) {
 		return a.Empty()
@@ -72,7 +73,7 @@ func (a *Acquirer) Build(ring *memory.Ring) Result {
 	return Result{
 		Record: record.Record{
 			Samples:       samples,
-			TriggerIndex:  PreSamples,
+			TriggerIndex:  int(math.Floor(PreSamples)),
 			TriggerOffset: trig.Offset,
 		},
 		Ready: true,
